@@ -43,7 +43,7 @@ from io import BytesIO
 import os, sys, json, gzip, zipfile
 
 # User parameter
-host = '0.0.0.0'
+host = 'localhost'
 port = 8083
 home = os.path.join(os.path.dirname(os.path.realpath(__file__)), "slpk")  # SLPK Folder
 
@@ -96,6 +96,16 @@ app = app()
 def list_services():
     """ List all available SLPK, with LINK to I3S service and Viewer page"""
     return template('services_list', slpks=sceneFiles)
+
+
+@app.route('/<slpk>/FeatureServer')
+@app.route('/<slpk>/FeatureServer/')
+@enable_cors
+def feature_server_info(slpk):
+    # Not available
+    return json.dumps([])
+
+
 
 
 @app.route('/<slpk>/SceneServer')
