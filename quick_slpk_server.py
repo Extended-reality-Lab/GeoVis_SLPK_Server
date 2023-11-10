@@ -43,7 +43,7 @@ from io import BytesIO
 import os, sys, json, gzip, zipfile
 
 # User parameter
-host = 'localhost'
+host = os.environ["HTTP_HOST"]
 port = 8083
 base = os.environ["BASE"]
 
