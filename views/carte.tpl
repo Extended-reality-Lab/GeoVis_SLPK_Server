@@ -30,7 +30,7 @@
       // Create Map
       var map = new Map({
         basemap: "dark-gray",
-        ground: "world-elevation"
+        //ground: "world-elevation"
       });
 
       // Create the SceneView
