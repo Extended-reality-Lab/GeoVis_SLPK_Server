@@ -45,7 +45,7 @@ import os, sys, json, gzip, zipfile
 # User parameter
 host = 'localhost'
 port = 8083
-base = "G:\\Development\\GeoVis\\GeoVis_SLPK_Server\\slpk\\"
+base = os.environ["BASE"]
 
 # *********#
 # Functions#
