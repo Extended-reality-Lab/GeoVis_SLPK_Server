@@ -35,12 +35,16 @@ Date: 12/02/2018
 Licence: GNU GPLv3 
 
 """
+import gzip
+import json
+import logging
+import os
+import zipfile
+from io import BytesIO
 
 # Import python modules
 import bottle
-from bottle import app, route, run, template, abort, response
-from io import BytesIO
-import os, sys, json, gzip, zipfile
+from bottle import app, template, abort, response
 
 # User parameter
 host = os.environ["HTTP_HOST"]
@@ -196,40 +200,27 @@ def textures_info(geovis, slpk, layer, node):
     response.headers['Content-Disposition'] = 'attachment; filename="0_0.jpg"'
     response.content_type = 'image/jpeg'
     try:
-        return read(f"nodes/{node}/textures/0_0.jpg", slpk)
+        result = read(f"nodes/{node}/textures/0_0.jpg", geovis, slpk)
+        return result
     except:
         try:
-            return read(f"nodes/{node}/textures/0_0.bin", slpk)
+            return read(f"nodes/{node}/textures/0_0.bin", geovis, slpk)
         except:
             return ""
 
 @app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/<texture>')
 @app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/<texture>/')
 @enable_cors
-def textures_info(geovis, slpk, layer, node, texture):
-    """ Texture information JPG """
-    check_file(geovis, slpk)
-
-    response.headers['Content-Disposition'] = f'attachment; filename="{texture}.jpg"'
-    response.content_type = 'image/jpeg'
-    try:
-        return read(f"nodes/{node}/textures/{texture}.jpg", slpk)
-    except:
-        try:
-            return read(f"nodes/{node}/textures/{texture}.bin", slpk)
-        except:
-            return ""
-
-@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0_1')
-@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0_1/')
-@enable_cors
-def Ctextures_info(geovis, slpk, layer, node):
+def Ctextures_info(geovis, slpk, layer, node, texture):
     """ Compressed texture information """
     check_file(geovis, slpk)
     try:
-        return read(f"nodes/{node}/textures/0_0_1.bin.dds.gz", geovis, slpk)
+        return read(f"nodes/{node}/textures/{texture}.bin.dds.gz", geovis, slpk)
     except:
-        return ""
+        try:
+            return read(f"nodes/{node}/textures/{texture}.jpg", geovis, slpk)
+        except:
+            return ""
 
 
 @app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/features/0')
@@ -271,7 +262,14 @@ def attribute_info(geovis, slpk, layer, node, attribute):
 def carte(geovis, slpk):
     """ Preview data on a 3d globe """
     check_file(geovis, slpk)
-    return template('carte', slpk=slpk, url=f"http://{host}:{port}/{geovis}/{slpk}/SceneServer/layers/0")
+    try:
+        _ =os.environ["HOSTED"]
+        return template('carte', slpk=slpk, url=f"http://{host}/slpk/{geovis}/{slpk}/SceneServer/layers/0")
+    except Exception as ex:
+        logging.error(ex)
+        return template('carte', slpk=slpk, url=f"http://{host}:{port}/{geovis}/{slpk}/SceneServer/layers/0")
+
+
 
 
 @app.route('/reload')
@@ -280,16 +278,18 @@ def reload():
     global sceneFiles
     sceneFiles = {}
     new_files = []
-    sceneFolders = [f for f in os.listdir(base)]
     sceneFolders = [f for f in os.listdir(base) if not os.path.isfile(os.path.join(base, f))]
     for folder in sceneFolders:
-        home = os.path.join(base, folder, "slpk")
-        new_files = [f for f in os.listdir(home) if os.path.splitext(f)[1].lower() == u".slpk"]
-        print(new_files)
-        sceneFiles[folder] = new_files
+        try:
+            home = os.path.join(base, folder, "slpk")
+            new_files = [f for f in os.listdir(home) if os.path.splitext(f)[1].lower() == u".slpk"]
+            print(new_files)
+            sceneFiles[folder] = new_files
+        except Exception as ex:
+            logging.error("Folder contains no SLPK")
     print(sceneFiles)
 
 
 # Run server
 reload()
-app.run(host=host, port=port)
+app.run(host="0.0.0.0", port=port)
