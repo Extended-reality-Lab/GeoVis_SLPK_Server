@@ -7,7 +7,7 @@ on:
 
 jobs:
       push-image:
-        runs-on: self-hosted
+        runs-on: 	ubuntu-latest
         steps:
           - name: 'Checkout'
             uses: actions/checkout@main
@@ -24,4 +24,4 @@ jobs:
           - name: 'Build Image'
             run: |
               docker build -t ghcr.io/extended-reality-lab/geovis-slpk-server .
-              docker push ghcr.io/extended-reality-lab/geovis--slpk-server
+              docker push ghcr.io/extended-reality-lab/geovis-slpk-server
