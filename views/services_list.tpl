@@ -5,10 +5,10 @@
 </head>
 
 <body>
-	<b>Liste des services disponibles:</b>
+	<b>List of available services:</b>
 	<ul>
-		% for slpk in slpks:
-		<li><a href="{{slpk}}/SceneServer">{{slpk}}</a><a href="carte/{{slpk}}"> [visualiser]</a></li>
+		% for folder in folders:
+		<li><a href="{{folder[0]}}/{{folder[1]}}/SceneServer">{{folder[0]}}-{{folder[1]}}</a><a href="carte/{{folder[0]}}/{{folder[1]}}"> [visualiser]</a></li>
 		% end
 	</ul>
 </body>

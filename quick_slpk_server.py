@@ -45,21 +45,21 @@ import os, sys, json, gzip, zipfile
 # User parameter
 host = 'localhost'
 port = 8083
-home = os.path.join(os.path.dirname(os.path.realpath(__file__)), "slpk")  # SLPK Folder
+base = "G:\\Development\\GeoVis\\GeoVis_SLPK_Server\\slpk\\"
 
 # *********#
 # Functions#
 # *********#
 
 # List available SLPK
-sceneFiles = [f for f in os.listdir(home) if os.path.splitext(f)[1].lower() == u".slpk"]
+sceneFiles = {}
 
 
-def read(f, slpk):
+def read(f, geovis, slpk):
     """read gz compressed file from slpk (=zip archive) and output result"""
     if f.startswith("\\"):  # remove first \
         f = f[1:]
-    with open(os.path.join(home, slpk), 'rb') as file:
+    with open(os.path.join(base, geovis, "slpk", slpk), 'rb') as file:
         with zipfile.ZipFile(file) as zip:
             if os.path.splitext(f)[1] == ".gz":  # unzip GZ
                 gz = BytesIO(zip.read(f.replace("\\", "/")))  # GZ file  -> convert path sep to zip path sep
@@ -84,6 +84,11 @@ def enable_cors(fn):
 
     return _enable_cors
 
+def check_file(geovis, slpk):
+    files = sceneFiles[geovis]
+    if slpk not in files:  # Get 404 if slpk doesn't exists
+        abort(404, f"Can't found SLPK: {slpk}")
+
 
 # *********#
 # SRIPT****#
@@ -95,101 +100,98 @@ app = app()
 @app.route('/')
 def list_services():
     """ List all available SLPK, with LINK to I3S service and Viewer page"""
-    return template('services_list', slpks=sceneFiles)
+    file_list = []
+    for folder in sceneFiles:
+        for file in sceneFiles[folder]:
+            file_list.append([folder, file])
+    return template('services_list', folders=file_list)
 
 
-@app.route('/<slpk>/FeatureServer')
-@app.route('/<slpk>/FeatureServer/')
+@app.route('/<geovis>/<slpk>/FeatureServer')
+@app.route('/<geovis>/<slpk>/FeatureServer/')
 @enable_cors
-def feature_server_info(slpk):
+def feature_server_info(geovis, slpk):
     # Not available
     return json.dumps([])
 
 
 
 
-@app.route('/<slpk>/SceneServer')
-@app.route('/<slpk>/SceneServer/')
+@app.route('/<geovis>/<slpk>/SceneServer')
+@app.route('/<geovis>/<slpk>/SceneServer/')
 @enable_cors
-def service_info(slpk):
+def service_info(geovis, slpk):
     """ Service information JSON """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
+    check_file(geovis, slpk)
     SceneServiceInfo = dict()
     SceneServiceInfo["serviceName"] = slpk
     SceneServiceInfo["name"] = slpk
     SceneServiceInfo["currentVersion"] = 10.6
     SceneServiceInfo["serviceVersion"] = "1.6"
     SceneServiceInfo["supportedBindings"] = ["REST"]
-    SceneServiceInfo["layers"] = [json.loads(read("3dSceneLayer.json.gz", slpk))]
+    SceneServiceInfo["layers"] = [json.loads(read("3dSceneLayer.json.gz", geovis, slpk))]
     response.content_type = 'application/json'
     return json.dumps(SceneServiceInfo)
 
 
-@app.route('/<slpk>/SceneServer/layers/0')
-@app.route('/<slpk>/SceneServer/layers/0/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/0')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/0/')
 @enable_cors
-def layer_info(slpk):
+def layer_info(geovis, slpk):
     """ Layer information JSON """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
-    SceneLayerInfo = json.loads(read("3dSceneLayer.json.gz", slpk))
+    check_file(geovis, slpk)
+    SceneLayerInfo = json.loads(read("3dSceneLayer.json.gz", geovis, slpk))
     response.content_type = 'application/json'
     return json.dumps(SceneLayerInfo)
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodepages')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodepages/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodepages')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodepages/')
 @enable_cors
-def node_info(slpk, layer):
+def node_info(geovis, slpk, layer):
     """ Node information JSON """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
-    NodeIndexDocument = json.loads(read("nodepages/0.json.gz", slpk))
+    check_file(geovis, slpk)
+    NodeIndexDocument = json.loads(read("nodepages/0.json.gz", geovis, slpk))
     response.content_type = 'application/json'
     return json.dumps(NodeIndexDocument)
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodepages/<node>')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodepages/<node>/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodepages/<node>')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodepages/<node>/')
 @enable_cors
-def node_info(slpk, layer, node):
+def node_info(geovis, slpk, layer, node):
     """ Node information JSON """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
-    NodeIndexDocument = json.loads(read(f"nodepages/{node}.json.gz", slpk))
+    check_file(geovis, slpk)
+    NodeIndexDocument = json.loads(read(f"nodepages/{node}.json.gz", geovis, slpk))
     response.content_type = 'application/json'
     return json.dumps(NodeIndexDocument)
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/')
 @enable_cors
-def node_info(slpk, layer, node):
+def node_info(geovis, slpk, layer, node):
     """ Node information JSON """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
-    NodeIndexDocument = json.loads(read(f"nodes/{node}/3dNodeIndexDocument.json.gz", slpk))
+    check_file(geovis, slpk)
+    NodeIndexDocument = json.loads(read(f"nodes/{node}/3dNodeIndexDocument.json.gz", geovis, slpk))
     response.content_type = 'application/json'
     return json.dumps(NodeIndexDocument)
 
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/geometries/0')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/geometries/0/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/geometries/0')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/geometries/0/')
 @enable_cors
-def geometry_info(slpk, layer, node):
+def geometry_info(geovis, slpk, layer, node):
     """ Geometry information bin """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
+    check_file(geovis, slpk)
     response.content_type = 'application/octet-stream; charset=binary'
     response.content_encoding = 'gzip'
-    return read(f"nodes/{node}/geometries/0.bin.gz", slpk)
+    return read(f"nodes/{node}/geometries/0.bin.gz", geovis, slpk)
 
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0/')
 @enable_cors
-def textures_info(slpk, layer, node):
+def textures_info(geovis, slpk, layer, node):
     """ Texture information JPG """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
+    check_file(geovis, slpk)
 
     response.headers['Content-Disposition'] = 'attachment; filename="0_0.jpg"'
     response.content_type = 'image/jpeg'
@@ -201,13 +203,12 @@ def textures_info(slpk, layer, node):
         except:
             return ""
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/<texture>')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/<texture>/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/<texture>')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/<texture>/')
 @enable_cors
-def textures_info(slpk, layer, node, texture):
+def textures_info(geovis, slpk, layer, node, texture):
     """ Texture information JPG """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
+    check_file(geovis, slpk)
 
     response.headers['Content-Disposition'] = f'attachment; filename="{texture}.jpg"'
     response.content_type = 'image/jpeg'
@@ -219,71 +220,76 @@ def textures_info(slpk, layer, node, texture):
         except:
             return ""
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0_1')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0_1/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0_1')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/textures/0_0_1/')
 @enable_cors
-def Ctextures_info(slpk, layer, node):
+def Ctextures_info(geovis, slpk, layer, node):
     """ Compressed texture information """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
+    check_file(geovis, slpk)
     try:
-        return read(f"nodes/{node}/textures/0_0_1.bin.dds.gz", slpk)
+        return read(f"nodes/{node}/textures/0_0_1.bin.dds.gz", geovis, slpk)
     except:
         return ""
 
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/features/0')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/features/0/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/features/0')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/features/0/')
 @enable_cors
-def feature_info(slpk, layer, node):
+def feature_info(geovis, slpk, layer, node):
     """ Feature information JSON """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
-    FeatureData = json.loads(read(f"nodes/{node}/features/0.json.gz", slpk))
+    check_file(geovis, slpk)
+    FeatureData = json.loads(read(f"nodes/{node}/features/0.json.gz", geovis, slpk))
     response.content_type = 'application/json'
     return json.dumps(FeatureData)
 
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/shared')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/shared/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/shared')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/shared/')
 @enable_cors
-def shared_info(slpk, layer, node):
+def shared_info(geovis, slpk, layer, node):
     """ Shared node information JSON """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
+    check_file(geovis, slpk)
     try:
-        Sharedressource = json.loads(read(f"nodes/{node}/shared/sharedResource.json.gz", slpk))
+        Sharedressource = json.loads(read(f"nodes/{node}/shared/sharedResource.json.gz", geovis, slpk))
         response.content_type = 'application/json'
         return json.dumps(Sharedressource)
     except:
         return ""
 
 
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/attributes/<attribute>/0')
-@app.route('/<slpk>/SceneServer/layers/<layer>/nodes/<node>/attributes/<attribute>/0/')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/attributes/<attribute>/0')
+@app.route('/<geovis>/<slpk>/SceneServer/layers/<layer>/nodes/<node>/attributes/<attribute>/0/')
 @enable_cors
-def attribute_info(slpk, layer, node, attribute):
+def attribute_info(geovis, slpk, layer, node, attribute):
     """ Attribute information JSON """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
-    return read(f"nodes/{node}/attributes/{attribute}/0.bin.gz", slpk)
+    check_file(geovis, slpk)
+    return read(f"nodes/{node}/attributes/{attribute}/0.bin.gz", geovis, slpk)
 
 
-@app.route('/carte/<slpk>')
+@app.route('/carte/<geovis>/<slpk>')
 @enable_cors
-def carte(slpk):
+def carte(geovis, slpk):
     """ Preview data on a 3d globe """
-    if slpk not in sceneFiles:  # Get 404 if slpk doesn't exists
-        abort(404, f"Can't found SLPK: {slpk}")
-    return template('carte', slpk=slpk, url=f"http://{host}:{port}/{slpk}/SceneServer/layers/0")
+    check_file(geovis, slpk)
+    return template('carte', slpk=slpk, url=f"http://{host}:{port}/{geovis}/{slpk}/SceneServer/layers/0")
 
 
 @app.route('/reload')
 @enable_cors
 def reload():
     global sceneFiles
-    sceneFiles = [f for f in os.listdir(home) if os.path.splitext(f)[1].lower() == u".slpk"]
+    sceneFiles = {}
+    new_files = []
+    sceneFolders = [f for f in os.listdir(base)]
+    sceneFolders = [f for f in os.listdir(base) if not os.path.isfile(os.path.join(base, f))]
+    for folder in sceneFolders:
+        home = os.path.join(base, folder, "slpk")
+        new_files = [f for f in os.listdir(home) if os.path.splitext(f)[1].lower() == u".slpk"]
+        print(new_files)
+        sceneFiles[folder] = new_files
+    print(sceneFiles)
 
 
 # Run server
+reload()
 app.run(host=host, port=port)
